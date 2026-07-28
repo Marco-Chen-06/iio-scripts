@@ -1,6 +1,7 @@
 # devicetree entries
 ## (appended to <kernel-path>/arch/arm64/boot/dts/broadcom/bcm2711-rpi-4-b.dts)
 
+```
 &i2c1 {
 	status = "okay";
 
@@ -13,10 +14,13 @@
 		maxim,ir-led-current-microamp = <7000>;
 	};
 };
+```
 
+```
 &gpio {
 	max30102_int_pins: max30102-int-pins {
 		pins = "gpio4";
 		bias-pull-up;
 	};
 };
+```
