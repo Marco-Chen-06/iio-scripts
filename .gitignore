@@ -1,1 +1,2 @@
-build/
+*.o
+max30102_read
