@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#define IIO_MAX_NAME_LENGTH 256
+
 // get device number by the instance name
 // returns device number of matched iio device on success, or an error code on failure
 int find_type_by_name(const char *name, const char *type);
