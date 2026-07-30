@@ -27,7 +27,7 @@ int find_type_by_name(const char *name, const char *type)
 	const struct dirent *ent;
 	FILE *namefp;
 	DIR *dp;
-	int number, ret, numstrlen;
+	int number = 0, ret, numstrlen;
 	char *filename;
 	char thisname[IIO_MAX_NAME_LENGTH];
 
@@ -115,9 +115,9 @@ int find_data_by_channel_name(const char *channel_name, const char *device_path,
 	char *index_filename;
 	char *type_filename;
 	index_filename = malloc(strlen(device_path) + strlen(channel_name) +
-				22); // "/scan_elements/ + index + \n" = 21 chars
+				22); // "/scan_elements/ + index + \0" = 21 chars
 	type_filename = malloc(strlen(device_path) + strlen(channel_name) +
-			       21); // "/scan_elements/ + type + \n" = 20 chars
+			       21); // "/scan_elements/ + type + \0" = 20 chars
 	sprintf(index_filename, "%s/scan_elements/%s_index", device_path, channel_name);
 	sprintf(type_filename, "%s/scan_elements/%s_type", device_path, channel_name);
 
@@ -152,7 +152,84 @@ int decode_type_string(const char *type_string, struct iio_type *type_struct)
 
 	type_struct->is_be = (endian_char == 'b') ? 1 : 0;
 	type_struct->is_signed = (format_char == 'u') ? 0 : 1;
-
 	return 0;
 }
 
+// hardcoded /dev/iio:device0 path, so if it isn't device0 this won't work. Consider editing later.
+int max30102_read_raw_data(const char *device_path, uint32_t *raw_red_data, uint32_t *raw_ir_data) {
+	uint8_t record[8];
+	FILE *red_en_fp;
+	FILE *ir_en_fp;
+	FILE *buf_len_fp;
+	FILE *buf_en_fp;
+	int dev_fd;
+	char *red_en_filename = malloc(strlen(device_path) + 35); // "/scan_elements/in_intensity_red_en + \0" = 35 
+	char *ir_en_filename = malloc(strlen(device_path) + 34); // "/scan_elements/in_intensity_ir_en + \0" = 34 
+	char *buf_len_filename = malloc(strlen(device_path) + 16); // "/buffer0/length + \0" = 16 
+	char *buf_en_filename = malloc(strlen(device_path) + 16); // "/buffer0/enable + \0" = 16
+	char *dev_filename = malloc(18 * sizeof(char)); // "/dev/iio:device0 + \0" = 17 but make it 18 incase devicenumber is 2 digits
+	sprintf(red_en_filename, "%s/scan_elements/in_intensity_red_en", device_path);
+	sprintf(ir_en_filename, "%s/scan_elements/in_intensity_ir_en", device_path);
+	sprintf(buf_len_filename, "%s/buffer0/length", device_path);
+	sprintf(buf_en_filename, "%s/buffer0/enable", device_path);
+	sprintf(dev_filename, "/dev/iio:device0"); // NOTE: THIS IS HARDCODED
+
+	red_en_fp = fopen(red_en_filename, "w");
+	if (red_en_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", red_en_filename, strerror(errno));
+		return -1;
+	}
+	fputc('1', red_en_fp);
+	fclose(red_en_fp);
+
+	ir_en_fp = fopen(ir_en_filename, "w");
+	if (ir_en_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", ir_en_filename, strerror(errno));
+		return -1;
+	}
+	fputc('1', ir_en_fp);
+	fclose(ir_en_fp);
+
+	buf_len_fp = fopen(buf_len_filename, "w");
+	if (buf_len_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", buf_len_filename, strerror(errno));
+		return -1;
+	}
+	fprintf(buf_len_fp, "%d", 128);
+	fclose(buf_len_fp);
+
+	buf_en_fp = fopen(buf_en_filename, "w");
+	if (buf_en_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", buf_en_filename, strerror(errno));
+		return -1;
+	}
+	fputc('1', buf_en_fp);
+	fclose(buf_en_fp);
+
+	dev_fd = open(dev_filename, O_RDONLY);
+	if (dev_fd < 0) {
+		fprintf(stderr, "Error opening %s: %s \r\n", dev_filename, strerror(errno));
+		return -1;
+	}
+
+
+	if (read(dev_fd, record, sizeof(record)) != sizeof(record)) {
+		fprintf(stderr, "Short read or possible error when reading %s: %s\r\n", dev_filename, strerror(errno));
+		return -1;
+	}
+
+	*raw_red_data = ((uint32_t)record[0] << 24) | ((uint32_t)record[1] << 16) | ((uint32_t)record[2] << 8) | record[3];
+	*raw_ir_data = ((uint32_t)record[4] << 24) | ((uint32_t)record[5] << 16) | ((uint32_t)record[6] << 8) | record[7];
+
+	buf_en_fp = fopen(buf_en_filename, "w");
+	if (buf_en_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", buf_en_filename, strerror(errno));
+		return -1;
+	}
+	fputc('0', buf_en_fp);
+	fclose(buf_en_fp);
+
+
+
+	return 0;
+}

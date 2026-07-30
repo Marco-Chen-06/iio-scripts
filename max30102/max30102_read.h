@@ -8,6 +8,8 @@
 #include <dirent.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define IIO_MAX_NAME_LENGTH 256
 extern const char *iio_dir;
@@ -31,5 +33,6 @@ int find_data_by_channel_name(const char *channel_name, const char *device_path,
 // decode type string attributes and print it
 int decode_type_string(const char *type_string, struct iio_type *type_struct);
 
+int max30102_read_raw_data(const char *device_path, uint32_t *raw_red_data, uint32_t *raw_ir_data);
 
 #endif
