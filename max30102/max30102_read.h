@@ -33,6 +33,9 @@ int find_data_by_channel_name(const char *channel_name, const char *device_path,
 // decode type string attributes and print it
 int decode_type_string(const char *type_string, struct iio_type *type_struct);
 
-int max30102_read_raw_data(const char *device_path, uint32_t *raw_red_data, uint32_t *raw_ir_data);
+// read one raw data byte
+int max30102_read_raw_data_byte(const char *device_path, uint32_t *raw_red_data, uint32_t *raw_ir_data);
+
+int max30102_read_data_stream(const char *device_path, const int num_samples, const struct iio_type type_struct);
 
 #endif

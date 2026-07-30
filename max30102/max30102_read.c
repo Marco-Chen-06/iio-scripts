@@ -156,7 +156,7 @@ int decode_type_string(const char *type_string, struct iio_type *type_struct)
 }
 
 // hardcoded /dev/iio:device0 path, so if it isn't device0 this won't work. Consider editing later.
-int max30102_read_raw_data(const char *device_path, uint32_t *raw_red_data, uint32_t *raw_ir_data) {
+int max30102_read_raw_data_byte(const char *device_path, uint32_t *raw_red_data, uint32_t *raw_ir_data) {
 	uint8_t record[8];
 	FILE *red_en_fp;
 	FILE *ir_en_fp;
@@ -221,6 +221,10 @@ int max30102_read_raw_data(const char *device_path, uint32_t *raw_red_data, uint
 	*raw_red_data = ((uint32_t)record[0] << 24) | ((uint32_t)record[1] << 16) | ((uint32_t)record[2] << 8) | record[3];
 	*raw_ir_data = ((uint32_t)record[4] << 24) | ((uint32_t)record[5] << 16) | ((uint32_t)record[6] << 8) | record[7];
 
+	if (close(dev_fd) == -1) {
+		fprintf(stderr, "Failed to close file descriptor of %s: %s\r\n", dev_filename, strerror(errno));
+	}
+
 	buf_en_fp = fopen(buf_en_filename, "w");
 	if (buf_en_fp == NULL) {
 		fprintf(stderr, "Error opening %s: %s \r\n", buf_en_filename, strerror(errno));
@@ -229,7 +233,107 @@ int max30102_read_raw_data(const char *device_path, uint32_t *raw_red_data, uint
 	fputc('0', buf_en_fp);
 	fclose(buf_en_fp);
 
+	free(red_en_filename);
+	free(ir_en_filename);
+	free(buf_len_filename);
+	free(buf_en_filename);
+	free(dev_filename);
+	return 0;
+}
+
+// read and print num_samples samples of data
+// type_struct parameter can be ir or red type struct, they have the same format either way
+int max30102_read_data_stream(const char *device_path, const int num_samples, const struct iio_type type_struct) {
+	uint8_t record[8];
+	FILE *red_en_fp;
+	FILE *ir_en_fp;
+	FILE *buf_len_fp;
+	FILE *buf_en_fp;
+	int dev_fd;
+	char *red_en_filename = malloc(strlen(device_path) + 35); // "/scan_elements/in_intensity_red_en + \0" = 35 
+	char *ir_en_filename = malloc(strlen(device_path) + 34); // "/scan_elements/in_intensity_ir_en + \0" = 34 
+	char *buf_len_filename = malloc(strlen(device_path) + 16); // "/buffer0/length + \0" = 16 
+	char *buf_en_filename = malloc(strlen(device_path) + 16); // "/buffer0/enable + \0" = 16
+	char *dev_filename = malloc(18 * sizeof(char)); // "/dev/iio:device0 + \0" = 17 but make it 18 incase devicenumber is 2 digits
+	sprintf(red_en_filename, "%s/scan_elements/in_intensity_red_en", device_path);
+	sprintf(ir_en_filename, "%s/scan_elements/in_intensity_ir_en", device_path);
+	sprintf(buf_len_filename, "%s/buffer0/length", device_path);
+	sprintf(buf_en_filename, "%s/buffer0/enable", device_path);
+	sprintf(dev_filename, "/dev/iio:device0"); // NOTE: THIS IS HARDCODED
+
+	red_en_fp = fopen(red_en_filename, "w");
+	if (red_en_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", red_en_filename, strerror(errno));
+		return -1;
+	}
+	fputc('1', red_en_fp);
+	fclose(red_en_fp);
+
+	ir_en_fp = fopen(ir_en_filename, "w");
+	if (ir_en_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", ir_en_filename, strerror(errno));
+		return -1;
+	}
+	fputc('1', ir_en_fp);
+	fclose(ir_en_fp);
+
+	buf_len_fp = fopen(buf_len_filename, "w");
+	if (buf_len_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", buf_len_filename, strerror(errno));
+		return -1;
+	}
+	fprintf(buf_len_fp, "%d", 128);
+	fclose(buf_len_fp);
+
+	buf_en_fp = fopen(buf_en_filename, "w");
+	if (buf_en_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", buf_en_filename, strerror(errno));
+		return -1;
+	}
+	fputc('1', buf_en_fp);
+	fclose(buf_en_fp);
+
+	dev_fd = open(dev_filename, O_RDONLY);
+	if (dev_fd < 0) {
+		fprintf(stderr, "Error opening %s: %s \r\n", dev_filename, strerror(errno));
+		return -1;
+	}
+
+	uint32_t raw_red_data;
+	uint32_t raw_ir_data;
+	uint32_t red_data;
+	uint32_t ir_data;
+	for (int i = 0; i < num_samples; i++) {
+		if (read(dev_fd, record, sizeof(record)) != sizeof(record)) {
+			fprintf(stderr, "Short read or possible error when reading %s: %s\r\n", dev_filename, strerror(errno));
+			return -1;
+		}
+
+		raw_red_data = ((uint32_t)record[0] << 24) | ((uint32_t)record[1] << 16) | ((uint32_t)record[2] << 8) | record[3];
+		raw_ir_data = ((uint32_t)record[4] << 24) | ((uint32_t)record[5] << 16) | ((uint32_t)record[6] << 8) | record[7];
+
+		red_data = (raw_red_data >> type_struct.shift) & ((1u << type_struct.num_real_bits) - 1);
+		ir_data = (raw_ir_data >> type_struct.shift) & ((1u << type_struct.num_real_bits) - 1);
+		printf("red data: %u     ir data: %u\n", red_data, ir_data);
+	}
 
 
+	if (close(dev_fd) == -1) {
+		fprintf(stderr, "Failed to close file descriptor of %s: %s\r\n", dev_filename, strerror(errno));
+	}
+
+	buf_en_fp = fopen(buf_en_filename, "w");
+	if (buf_en_fp == NULL) {
+		fprintf(stderr, "Error opening %s: %s \r\n", buf_en_filename, strerror(errno));
+		return -1;
+	}
+	fputc('0', buf_en_fp);
+	fclose(buf_en_fp);
+
+	free(red_en_filename);
+	free(ir_en_filename);
+	free(buf_len_filename);
+	free(buf_en_filename);
+	free(dev_filename);
 	return 0;
 }

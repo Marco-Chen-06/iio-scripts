@@ -1,5 +1,4 @@
 #include "max30102_read.h"
-
 int main()
 {
 	const char *name = "max30102";
@@ -48,11 +47,14 @@ int main()
 	uint32_t raw_ir_data;
 	uint32_t red_data;
 	uint32_t ir_data;
-	max30102_read_raw_data(device_path, &raw_red_data, &raw_ir_data);
+	max30102_read_raw_data_byte(device_path, &raw_red_data, &raw_ir_data);
 	red_data = (raw_red_data >> red_type_struct.shift) & ((1u << red_type_struct.num_real_bits) - 1);
 	ir_data = (raw_ir_data >> ir_type_struct.shift) & ((1u << ir_type_struct.num_real_bits) - 1);
-	printf("%d\n", red_data);
-	printf("%d\n", ir_data);
+	printf("red data: %u     ir_data: %u \n", red_data, ir_data);
+
+	// capture arbitrary number of samples of data and print it
+	const int NUM_SAMPLES_TO_CAPTURE = 500;
+	max30102_read_data_stream(device_path, NUM_SAMPLES_TO_CAPTURE, red_type_struct);
 
 	return number;
 }
