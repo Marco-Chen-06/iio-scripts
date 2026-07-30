@@ -53,6 +53,7 @@ int main()
 	printf("red data: %u     ir_data: %u \n", red_data, ir_data);
 
 	// capture arbitrary number of samples of data and print it
+	// notice there will be a small delay every 128 samples because we made buflen = 128 an assumption
 	const int NUM_SAMPLES_TO_CAPTURE = 500;
 	max30102_read_data_stream(device_path, NUM_SAMPLES_TO_CAPTURE, red_type_struct);
 
