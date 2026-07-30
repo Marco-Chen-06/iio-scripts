@@ -107,19 +107,24 @@ int find_type_by_name(const char *name, const char *type)
 	return -ENODEV;
 }
 
-int find_data_by_channel_name(const char *channel_name, const char *device_path, int *index, char *type) {
+int find_data_by_channel_name(const char *channel_name, const char *device_path, int *index,
+			      char *type)
+{
 	FILE *index_fp;
 	FILE *type_fp;
 	char *index_filename;
 	char *type_filename;
-	index_filename = malloc(strlen(device_path) + strlen(channel_name) + 22); // "/scan_elements/ + index + \n" = 21 chars
-	type_filename = malloc(strlen(device_path) + strlen(channel_name) + 21); // "/scan_elements/ + type + \n" = 20 chars
+	index_filename = malloc(strlen(device_path) + strlen(channel_name) +
+				22); // "/scan_elements/ + index + \n" = 21 chars
+	type_filename = malloc(strlen(device_path) + strlen(channel_name) +
+			       21); // "/scan_elements/ + type + \n" = 20 chars
 	sprintf(index_filename, "%s/scan_elements/%s_index", device_path, channel_name);
 	sprintf(type_filename, "%s/scan_elements/%s_type", device_path, channel_name);
 
 	index_fp = fopen(index_filename, "r");
 	if (index_fp == NULL) {
-		fprintf(stderr, "Error opening index_fp: %s. index_filename: %s\r\n", strerror(errno), index_filename);
+		fprintf(stderr, "Error opening index_fp: %s. index_filename: %s\r\n",
+			strerror(errno), index_filename);
 		return -1;
 	}
 
@@ -137,6 +142,17 @@ int find_data_by_channel_name(const char *channel_name, const char *device_path,
 	return 0;
 }
 
-int decode_type_string(const char *type_string, struct iio_type *type_struct) {
-	
+// parse type string and update iio type struct fields
+int decode_type_string(const char *type_string, struct iio_type *type_struct)
+{
+	char endian_char;
+	char format_char;
+	// example type string: be:u18/32>>8
+	sscanf(type_string, "%ce:%c%u/%u>>%u", &endian_char, &format_char, &type_struct->num_real_bits, &type_struct->num_storage_bits, &type_struct->shift);
+
+	type_struct->is_be = (endian_char == 'b') ? 1 : 0;
+	type_struct->is_signed = (format_char == 'u') ? 0 : 1;
+
+	return 0;
 }
+
