@@ -43,23 +43,14 @@ int main()
 	       red_type_struct.num_real_bits, red_type_struct.num_storage_bits,
 	       red_type_struct.shift, red_type_struct.num_storage_bits / 8);
 
-	// capture one bytes of records from each channel
-	// (write 1 to <path>/in_intensity_ir_en and <path>/in_intensity_red_en)
-	// write a buflen (maybe 128) to /sys/bus/iio/devices/iio:device0/buffer0/length
-	// write 1 to <path>/buffer0/enable
-	// open "/dev/iio:device0", O_RDONLY and read() 8 bytes
+	// capture one byte of data from each channel and format it and print it
 	uint32_t raw_red_data;
 	uint32_t raw_ir_data;
-	max30102_read_raw_data(device_path, &raw_red_data, &raw_ir_data);
-
-	printf("%d\n", raw_red_data);
-	printf("%d\n", raw_ir_data);
-
 	uint32_t red_data;
 	uint32_t ir_data;
+	max30102_read_raw_data(device_path, &raw_red_data, &raw_ir_data);
 	red_data = (raw_red_data >> red_type_struct.shift) & ((1u << red_type_struct.num_real_bits) - 1);
 	ir_data = (raw_ir_data >> ir_type_struct.shift) & ((1u << ir_type_struct.num_real_bits) - 1);
-
 	printf("%d\n", red_data);
 	printf("%d\n", ir_data);
 
