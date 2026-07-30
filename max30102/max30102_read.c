@@ -1,7 +1,7 @@
 #include "max30102_read.h"
 const char *iio_dir = "/sys/bus/iio/devices/";
 
-static int calc_digits(int num)
+int calc_digits(int num)
 {
 	int count = 0;
 	if (!num) {
@@ -105,4 +105,34 @@ int find_type_by_name(const char *name, const char *type)
 		return -errno;
 	}
 	return -ENODEV;
+}
+
+int find_data_by_channel_name(const char *channel_name, const char *device_path, int *index, char *type) {
+	FILE *index_fp;
+	FILE *type_fp;
+	char *index_filename;
+	char *type_filename;
+	index_filename = malloc(strlen(device_path) + strlen(channel_name) + 22); // "/scan_elements/ + index + \n" = 21 chars
+	type_filename = malloc(strlen(device_path) + strlen(channel_name) + 21); // "/scan_elements/ + type + \n" = 20 chars
+	sprintf(index_filename, "%s/scan_elements/%s_index", device_path, channel_name);
+	sprintf(type_filename, "%s/scan_elements/%s_type", device_path, channel_name);
+
+	index_fp = fopen(index_filename, "r");
+	if (index_fp == NULL) {
+		fprintf(stderr, "Error opening index_fp: %s. index_filename: %s\r\n", strerror(errno), index_filename);
+		return -1;
+	}
+
+	type_fp = fopen(type_filename, "r");
+	if (type_fp == NULL) {
+		fprintf(stderr, "Error opening type_fp: %s\r\n", strerror(errno));
+		return -1;
+	}
+
+	// there should be error checking here, but for ease of time I won't implement it
+	fscanf(index_fp, "%d", index);
+	fscanf(type_fp, "%s", type);
+	fclose(index_fp);
+	fclose(type_fp);
+	return 0;
 }
