@@ -136,3 +136,7 @@ int find_data_by_channel_name(const char *channel_name, const char *device_path,
 	fclose(type_fp);
 	return 0;
 }
+
+int decode_type_string(const char *type_string, struct iio_type *type_struct) {
+	
+}

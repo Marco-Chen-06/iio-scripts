@@ -24,6 +24,8 @@ int main() {
 	printf("Channel: %s   index=%d  type=%s\r\n", in_intensity_ir_name, in_intensity_ir_index, in_intensity_ir_type);
 
 	// decode type string and fill out appropriate fields in type struct
+	struct iio_type red_type_struct;
+	struct iio_type ir_type_struct;
 
 
 	return number;
